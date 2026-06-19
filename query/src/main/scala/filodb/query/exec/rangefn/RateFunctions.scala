@@ -466,22 +466,22 @@ class ChunkedSumCountDeltaRangeFunctionDD(sumColId: Int, countColId: Int,
     countFunc.reset()
   }
 
-  override def apply(windowStart: Long, windowEnd: Long, sampleToEmit: HistAvgAggTransientRow): Unit = {
+  override def apply(schema: Schema, windowStart: Long, windowEnd: Long, sampleToEmit: HistAvgAggTransientRow): Unit = {
     // Since the underlying ChunkedDoubleRangeFunction objects support only two columns using TransientRow,
     // we use a temporary TransientRow ("tr" in this case) instance to get the result and put it back into sampleToEmit.
     // We can optimize this by having ChunkedDoubleRangeFunction accept a column number to set.
     // But this work is deferred for later
     sampleToEmit.setLong(0, windowEnd)
-    sumFunc.apply(windowStart, windowEnd, tr)
+    sumFunc.apply(schema, windowStart, windowEnd, tr)
     sampleToEmit.setDouble(1, tr.getDouble(1))
-    countFunc.apply(windowStart, windowEnd, tr)
+    countFunc.apply(schema, windowStart, windowEnd, tr)
     sampleToEmit.setDouble(2, tr.getDouble(1))
   }
 
   override def apply(endTimestamp: Long, sampleToEmit: HistAvgAggTransientRow): Unit = ???
 
   // scalastyle:off parameter.number
-  def addChunks(tsVectorAcc: MemoryReader, tsVector: BinaryVectorPtr, tsReader: bv.LongVectorDataReader,
+  def addChunks(schema: Schema, tsVectorAcc: MemoryReader, tsVector: BinaryVectorPtr, tsReader: bv.LongVectorDataReader,
                 valueVectorAcc: MemoryReader, valueVector: BinaryVectorPtr, valueReader: VectorDataReader,
                 startTime: Long, endTime: Long, info: ChunkSetInfoReader, queryConfig: QueryConfig): Unit = {
     // Do BinarySearch for start/end pos only once for all columns == WIN!
@@ -494,14 +494,14 @@ class ChunkedSumCountDeltaRangeFunctionDD(sumColId: Int, countColId: Int,
       // Get valueVector/reader for max column
       val sumVectAcc = info.vectorAccessor(sumColId)
       val sumVectPtr = info.vectorAddress(sumColId)
-      sumFunc.addTimeDoubleChunks(sumVectAcc, sumVectPtr, bv.DoubleVector(sumVectAcc, sumVectPtr),
-        startRowNum, endRowNum)
+      sumFunc.addTimeDoubleChunksWithTimestamp(tsVectorAcc, tsVector, tsReader, sumVectAcc,
+        sumVectPtr, bv.DoubleVector(sumVectAcc, sumVectPtr), startRowNum, endRowNum)
 
       // Get valueVector/reader for min column
       val countVectAcc = info.vectorAccessor(countColId)
       val countVectPtr = info.vectorAddress(countColId)
-      countFunc.addTimeDoubleChunks(countVectAcc, countVectPtr, bv.DoubleVector(countVectAcc, countVectPtr),
-        startRowNum, endRowNum)
+      countFunc.addTimeDoubleChunksWithTimestamp(tsVectorAcc, tsVector, tsReader, countVectAcc,
+        countVectPtr, bv.DoubleVector(countVectAcc, countVectPtr), startRowNum, endRowNum)
     }
   }
 }

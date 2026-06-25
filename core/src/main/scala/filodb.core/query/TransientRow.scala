@@ -235,6 +235,8 @@ final class HistAvgAggTransientRow extends TransientRow {
       count = k.count
     case _                           => throw new IllegalArgumentException("Unknown Row reader")
   }
+
+  override def toString: String = s"HistAvgAggTransientRow(count=$count avg=$value)"
 }
 
 /**

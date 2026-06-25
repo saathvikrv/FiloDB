@@ -975,13 +975,15 @@ class ChunkedSumCountCumulRangeFunctionDD(sumColId: Int, countColId: Int,
       val sumVectAcc = info.vectorAccessor(sumColId)
       val sumVectPtr = info.vectorAddress(sumColId)
       sumFunc.addTimeChunks(sumVectAcc, sumVectPtr, bv.DoubleVector(sumVectAcc, sumVectPtr),
-                            startRowNum, endRowNum, startTime, endTime)
+                            startRowNum, endRowNum, tsReader(tsVectorAcc, tsVector, startRowNum),
+                            tsReader(tsVectorAcc, tsVector, endRowNum))
 
       // Get valueVector/reader for count column
       val countVectAcc = info.vectorAccessor(countColId)
       val countVectPtr = info.vectorAddress(countColId)
       countFunc.addTimeChunks(countVectAcc, countVectPtr, bv.DoubleVector(countVectAcc, countVectPtr),
-                              startRowNum, endRowNum, startTime, endTime)
+                              startRowNum, endRowNum, tsReader(tsVectorAcc, tsVector, startRowNum),
+                              tsReader(tsVectorAcc, tsVector, endRowNum))
     }
   }
 }

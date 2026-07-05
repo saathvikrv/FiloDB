@@ -964,27 +964,21 @@ class ChunkedSumCountCumulRangeFunctionDD(sumColId: Int, countColId: Int,
   def addChunks(schema: Schema, tsVectorAcc: MemoryReader, tsVector: BinaryVectorPtr, tsReader: bv.LongVectorDataReader,
                 valueVectorAcc: MemoryReader, valueVector: BinaryVectorPtr, valueReader: VectorDataReader,
                 startTime: Long, endTime: Long, info: ChunkSetInfoReader, queryConfig: QueryConfig): Unit = {
-    // Do BinarySearch for start/end pos only once for all columns == WIN!
-    val startRowNum = tsReader.binarySearch(tsVectorAcc, tsVector, startTime) & 0x7fffffff
-    val endRowNum = Math.min(tsReader.ceilingIndex(tsVectorAcc, tsVector, endTime), info.numRows - 1)
+    // Get valueVector/reader for sum column
+    val sumVectAcc = info.vectorAccessor(sumColId)
+    val sumVectPtr = info.vectorAddress(sumColId)
+    val sumReader = bv.DoubleVector(sumVectAcc, sumVectPtr)
 
-    // At least one sample is present
-    if (startRowNum <= endRowNum) {
+    // Get valueVector/reader for count column
+    val countVectAcc = info.vectorAccessor(countColId)
+    val countVectPtr = info.vectorAddress(countColId)
+    val countReader = bv.DoubleVector(countVectAcc, countVectPtr)
 
-      // Get valueVector/reader for sum column
-      val sumVectAcc = info.vectorAccessor(sumColId)
-      val sumVectPtr = info.vectorAddress(sumColId)
-      sumFunc.addTimeChunks(sumVectAcc, sumVectPtr, bv.DoubleVector(sumVectAcc, sumVectPtr),
-                            startRowNum, endRowNum, tsReader(tsVectorAcc, tsVector, startRowNum),
-                            tsReader(tsVectorAcc, tsVector, endRowNum))
-
-      // Get valueVector/reader for count column
-      val countVectAcc = info.vectorAccessor(countColId)
-      val countVectPtr = info.vectorAddress(countColId)
-      countFunc.addTimeChunks(countVectAcc, countVectPtr, bv.DoubleVector(countVectAcc, countVectPtr),
-                              startRowNum, endRowNum, tsReader(tsVectorAcc, tsVector, startRowNum),
-                              tsReader(tsVectorAcc, tsVector, endRowNum))
-    }
+    // Delegate to each function's own addChunks (CounterChunkedRangeFunction), which does counter-correction.
+    sumFunc.addChunks(schema, tsVectorAcc, tsVector, tsReader, sumVectAcc, sumVectPtr, sumReader,
+      startTime, endTime, info, queryConfig)
+    countFunc.addChunks(schema, tsVectorAcc, tsVector, tsReader, countVectAcc, countVectPtr, countReader,
+      startTime, endTime, info, queryConfig)
   }
 }
 

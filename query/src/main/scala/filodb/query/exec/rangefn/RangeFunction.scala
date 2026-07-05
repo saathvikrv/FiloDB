@@ -385,29 +385,23 @@ object RangeFunction {
     func match {
       case None                                   => () => new LastSampleChunkedFunctionD
       case Some(Last)                             => () => new LastSampleChunkedFunctionD
-      case Some(Increase) if schema.columns(1).isCumulative &&
-                          RowAggregator.isHistSumCount(schema)
-                                                  => () => new ChunkedSumCountCumulRangeFunctionDD(1, 2,
-                                                                                new ChunkedIncreaseFunction,
-                                                                                new ChunkedIncreaseFunction)
+      case Some(Rate)     if RowAggregator.isHistSumCount(schema)
+                                                  => () => new CumlDeltaTogglerChunkedFunction(
+                                                              new ChunkedSumCountCumulRangeFunctionDD(1, 2,
+                                                                new ChunkedRateFunction,
+                                                                new ChunkedRateFunction),
+                                                              new ChunkedSumCountDeltaRangeFunctionDD(1, 2,
+                                                                new RateOverDeltaChunkedFunctionD,
+                                                                new RateOverDeltaChunkedFunctionD))
 
-      case Some(Rate) if schema.columns(1).isCumulative &&
-                          RowAggregator.isHistSumCount(schema)
-                                                  => () => new ChunkedSumCountCumulRangeFunctionDD(1, 2,
-                                                                                new ChunkedRateFunction,
-                                                                                new ChunkedRateFunction)
-
-      case Some(Increase)     if !schema.columns(1).isCumulative &&
-                          RowAggregator.isHistSumCount(schema)
-                                                  => () => new ChunkedSumCountDeltaRangeFunctionDD(1, 2,
-                                                                                new SumOverTimeChunkedFunctionD,
-                                                                                new SumOverTimeChunkedFunctionD)
-
-      case Some(Rate)     if !schema.columns(1).isCumulative &&
-                          RowAggregator.isHistSumCount(schema)
-                                                  => () => new ChunkedSumCountDeltaRangeFunctionDD(1, 2,
-                                                                                new RateOverDeltaChunkedFunctionD,
-                                                                                new RateOverDeltaChunkedFunctionD)
+      case Some(Increase) if RowAggregator.isHistSumCount(schema)
+                                                  => () => new CumlDeltaTogglerChunkedFunction(
+                                                              new ChunkedSumCountCumulRangeFunctionDD(1, 2,
+                                                                new ChunkedIncreaseFunction,
+                                                                new ChunkedIncreaseFunction),
+                                                              new ChunkedSumCountDeltaRangeFunctionDD(1, 2,
+                                                                new SumOverTimeChunkedFunctionD,
+                                                                new SumOverTimeChunkedFunctionD))
 
       case Some(Increase)                         => () => new CumlDeltaTogglerChunkedFunction(
                                                                                      new ChunkedIncreaseFunction,
